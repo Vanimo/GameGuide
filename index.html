@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Guide</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --fg: #0f172a;
+    --muted: #64748b;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a;
+      --fg: #e2e8f0;
+      --muted: #94a3b8;
+      --card: #1e293b;
+      --border: #334155;
+      --accent: #60a5fa;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h1 { font-size: 1.35rem; margin: 0; }
+  #subtitle { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.95rem; }
+  .lang-toggle {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--card);
+  }
+  .lang-toggle button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-weight: 600;
+    padding: 0.45rem 1.1rem;
+    cursor: pointer;
+  }
+  .lang-toggle button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  main {
+    flex: 1;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  #diagram {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  #diagram svg { max-width: 100%; height: auto; }
+  footer {
+    padding: 0.9rem 1.5rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1 id="title"></h1>
+      <p id="subtitle"></p>
+    </div>
+    <nav class="lang-toggle" aria-label="Language">
+      <button type="button" data-lang="nl">NL</button>
+      <button type="button" data-lang="en">EN</button>
+    </nav>
+  </header>
+  <main>
+    <div id="diagram" role="img"></div>
+  </main>
+  <footer>
+    <span id="footer-note"></span>
+  </footer>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+// ELK lays out the many edges converging on the reject node much more cleanly
+// than the default renderer; fall back silently if the CDN import fails.
+let layout = 'dagre';
+try {
+  const elkLayouts = (await import('https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.7/dist/mermaid-layout-elk.esm.min.mjs')).default;
+  mermaid.registerLayoutLoaders(elkLayouts);
+  layout = 'elk';
+} catch (e) {
+  console.warn('ELK layout unavailable, using default renderer', e);
+}
+
+const t = {
+  nl: {
+    title: 'Game Guide',
+    subtitle: 'Een stroomschema: koop ik dit spel of niet?',
+    footer: 'Wissel van taal met de knoppen rechtsboven.',
+    yes: 'Ja', no: 'Nee',
+    start: 'Koop ik het spel?',
+    budget: 'Ik gooi vandaag niet met geld.',
+    steam: 'Beschikbaar op Steam?',
+    launcher: "Vrij van eigen 'launcher'?",
+    iap: 'Vrij van in-game aankopen?',
+    cosmetic: 'Alléén cosmetische items?',
+    online: 'Vereist always-online?',
+    single: 'Is het Single Player?',
+    anticheat: 'Vrij van kernel-level-anticheat?',
+    ai: 'Vrij van AI-gegenereerde content?',
+    ea: 'Is de uitgever EA-Games?',
+    early: 'Is het nog in Early Access?',
+    wishlist: 'Zet het op de Verlanglijst.',
+    buy: 'Kopen die handel!',
+    dont: 'Ik koop het spel niet',
+  },
+  en: {
+    title: 'Game Guide',
+    subtitle: 'A flowchart: should I buy this game or not?',
+    footer: 'Switch language with the buttons at the top right.',
+    yes: 'Yes', no: 'No',
+    start: 'Should I buy the game?',
+    budget: "I'm not throwing money around today.",
+    steam: 'Available on Steam?',
+    launcher: 'Free of its own launcher?',
+    iap: 'Free of in-game purchases?',
+    cosmetic: 'Cosmetic items only?',
+    online: 'Requires always-online?',
+    single: 'Is it single player?',
+    anticheat: 'Free of kernel-level anti-cheat?',
+    ai: 'Free of AI-generated content?',
+    ea: 'Is the publisher EA Games?',
+    early: 'Is it still in Early Access?',
+    wishlist: 'Put it on the wishlist.',
+    buy: 'Buy the damn thing!',
+    dont: "I don't buy the game",
+  },
+};
+
+function diagram(lang) {
+  const s = t[lang];
+  return `flowchart TD
+  K(["${s.start}"]) -->|"${s.budget}"| St
+  St{{"${s.steam}"}} -->|${s.yes}| Ln
+  St -->|${s.no}| N(["${s.dont}"])
+  Ln{{"${s.launcher}"}} -->|${s.yes}| Ig
+  Ln -->|${s.no}| N
+  Ig{{"${s.iap}"}} -->|${s.yes}| Ao
+  Ig -->|${s.no}| Cm
+  Cm{{"${s.cosmetic}"}} -->|${s.yes}| Sp
+  Cm -->|${s.no}| N
+  Sp{{"${s.single}"}} -->|${s.yes}| Ao
+  Sp -->|${s.no}| N
+  Ao{{"${s.online}"}} -->|${s.no}| Kl
+  Ao -->|${s.yes}| N
+  Kl{{"${s.anticheat}"}} -->|${s.yes}| Ai
+  Kl -->|${s.no}| N
+  Ai{{"${s.ai}"}} -->|${s.yes}| Ea
+  Ai -->|${s.no}| N
+  Ea{{"${s.ea}"}} -->|${s.no}| Er
+  Ea -->|${s.yes}| N
+  Er{{"${s.early}"}} -->|${s.yes}| Wl
+  Er -->|${s.no}| B
+  Wl(["${s.wishlist}"])
+  B(["${s.buy}"])
+
+  classDef startNode fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px
+  classDef reject fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px
+  classDef buyNode fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+  classDef wish fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
+  class K startNode
+  class N reject
+  class B buyNode
+  class Wl wish`;
+}
+
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+let lang = new URLSearchParams(location.search).get('lang')
+  || localStorage.getItem('gg-lang')
+  || (navigator.language?.startsWith('nl') ? 'nl' : 'en');
+if (!t[lang]) lang = 'nl';
+
+let renderCount = 0;
+async function render() {
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: darkQuery.matches ? 'dark' : 'default',
+    layout,
+    securityLevel: 'strict',
+    flowchart: { padding: 12 },
+    elk: { mergeEdges: true, nodePlacementStrategy: 'BRANDES_KOEPF' },
+  });
+  const { svg } = await mermaid.render('gg-' + (renderCount++), diagram(lang));
+  document.getElementById('diagram').innerHTML = svg;
+}
+
+function applyLang() {
+  const s = t[lang];
+  document.documentElement.lang = lang;
+  document.title = s.title;
+  document.getElementById('title').textContent = s.title;
+  document.getElementById('subtitle').textContent = s.subtitle;
+  document.getElementById('footer-note').textContent = s.footer;
+  document.querySelectorAll('.lang-toggle button').forEach((b) => {
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+}
+
+document.querySelectorAll('.lang-toggle button').forEach((b) => {
+  b.addEventListener('click', () => {
+    lang = b.dataset.lang;
+    localStorage.setItem('gg-lang', lang);
+    applyLang();
+    render();
+  });
+});
+darkQuery.addEventListener('change', render);
+
+applyLang();
+await render();
+</script>
+</body>
+</html>
