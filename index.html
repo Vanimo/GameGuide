@@ -29,7 +29,8 @@
     background: var(--bg);
     color: var(--fg);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
   }
@@ -66,20 +67,50 @@
   }
   main {
     flex: 1;
-    padding: 1.5rem;
+    min-height: 0;
+    padding: 1rem 1.5rem;
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
   }
   #diagram {
+    flex: 1;
+    position: relative;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 1rem;
-    max-width: 100%;
-    overflow-x: auto;
+    overflow: hidden;
+    touch-action: none;
+    cursor: grab;
   }
-  #diagram svg { max-width: 100%; height: auto; }
+  #diagram:active { cursor: grabbing; }
+  #svg-host {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #svg-host svg { flex-shrink: 0; }
+  .zoom-controls {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    z-index: 2;
+  }
+  .zoom-controls button {
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .zoom-controls button:hover { border-color: var(--accent); color: var(--accent); }
   footer {
     padding: 0.9rem 1.5rem;
     color: var(--muted);
@@ -101,7 +132,14 @@
     </nav>
   </header>
   <main>
-    <div id="diagram" role="img"></div>
+    <div id="diagram">
+      <div id="svg-host" role="img"></div>
+      <div class="zoom-controls">
+        <button type="button" id="zoom-in">+</button>
+        <button type="button" id="zoom-out">−</button>
+        <button type="button" id="zoom-fit">⛶</button>
+      </div>
+    </div>
   </main>
   <footer>
     <span id="footer-note"></span>
@@ -109,6 +147,7 @@
 
 <script type="module">
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+import Panzoom from 'https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.6.0/dist/panzoom.es.js';
 
 // ELK lays out the many edges converging on the reject node much more cleanly
 // than the default renderer; fall back silently if the CDN import fails.
@@ -125,7 +164,7 @@ const t = {
   nl: {
     title: 'Game Guide',
     subtitle: 'Een stroomschema: koop ik dit spel of niet?',
-    footer: 'Wissel van taal met de knoppen rechtsboven.',
+    footer: 'Scroll om te zoomen, sleep om te verschuiven. Wissel van taal rechtsboven.',
     yes: 'Ja', no: 'Nee',
     start: 'Koop ik het spel?',
     budget: 'Ik gooi vandaag niet met geld.',
@@ -146,7 +185,7 @@ const t = {
   en: {
     title: 'Game Guide',
     subtitle: 'A flowchart: should I buy this game or not?',
-    footer: 'Switch language with the buttons at the top right.',
+    footer: 'Scroll to zoom, drag to pan. Switch language at the top right.',
     yes: 'Yes', no: 'No',
     start: 'Should I buy the game?',
     budget: "I'm not throwing money around today.",
@@ -210,18 +249,41 @@ let lang = new URLSearchParams(location.search).get('lang')
 if (!t[lang]) lang = 'nl';
 
 let renderCount = 0;
+let panzoom = null;
+
 async function render() {
   mermaid.initialize({
     startOnLoad: false,
     theme: darkQuery.matches ? 'dark' : 'default',
     layout,
     securityLevel: 'strict',
-    flowchart: { padding: 12 },
+    flowchart: { padding: 12, useMaxWidth: false },
     elk: { mergeEdges: true, nodePlacementStrategy: 'BRANDES_KOEPF' },
   });
+  const host = document.getElementById('svg-host');
   const { svg } = await mermaid.render('gg-' + (renderCount++), diagram(lang));
-  document.getElementById('diagram').innerHTML = svg;
+  panzoom?.destroy();
+  host.innerHTML = svg;
+  const svgEl = host.querySelector('svg');
+  // Start fitted to the viewport (but never upscaled past 100%).
+  const box = host.getBoundingClientRect();
+  const nat = svgEl.getBoundingClientRect();
+  const fit = Math.min(box.width / nat.width, box.height / nat.height, 1);
+  panzoom = Panzoom(svgEl, {
+    startScale: fit,
+    minScale: Math.min(fit, 0.2),
+    maxScale: 8,
+    origin: '50% 50%',
+    canvas: true,
+    cursor: '',
+  });
 }
+
+const diagramEl = document.getElementById('diagram');
+diagramEl.addEventListener('wheel', (e) => panzoom?.zoomWithWheel(e), { passive: false });
+document.getElementById('zoom-in').addEventListener('click', () => panzoom?.zoomIn());
+document.getElementById('zoom-out').addEventListener('click', () => panzoom?.zoomOut());
+document.getElementById('zoom-fit').addEventListener('click', () => panzoom?.reset());
 
 function applyLang() {
   const s = t[lang];
