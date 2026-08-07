@@ -12,6 +12,12 @@
     --card: #ffffff;
     --border: #e2e8f0;
     --accent: #2563eb;
+    --line: #94a3b8;
+    --q-bg: #eef2ff;    --q-br: #818cf8;    --q-fg: #312e81;
+    --start-bg: #dbeafe; --start-br: #2563eb; --start-fg: #1e3a8a;
+    --stop-bg: #fee2e2;  --stop-br: #dc2626;  --stop-fg: #7f1d1d;
+    --buy-bg: #dcfce7;   --buy-br: #16a34a;   --buy-fg: #14532d;
+    --wish-bg: #fef9c3;  --wish-br: #ca8a04;  --wish-fg: #713f12;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -21,6 +27,12 @@
       --card: #1e293b;
       --border: #334155;
       --accent: #60a5fa;
+      --line: #64748b;
+      --q-bg: #26264a;    --q-br: #818cf8;    --q-fg: #e0e7ff;
+      --start-bg: #172a54; --start-br: #60a5fa; --start-fg: #dbeafe;
+      --stop-bg: #451a1a;  --stop-br: #f87171;  --stop-fg: #fecaca;
+      --buy-bg: #132e1f;   --buy-br: #4ade80;   --buy-fg: #bbf7d0;
+      --wish-bg: #3a3110;  --wish-br: #facc15;  --wish-fg: #fef08a;
     }
   }
   * { box-sizing: border-box; }
@@ -117,7 +129,36 @@
     font-size: 0.85rem;
     border-top: 1px solid var(--border);
   }
-  footer a { color: var(--accent); }
+
+  /* ── diagram styling ── */
+  #svg-host .edge { fill: none; stroke: var(--line); stroke-width: 1.5; }
+  #svg-host .joint { fill: var(--line); }
+  #svg-host marker path { fill: var(--line); }
+  #svg-host .edge-label {
+    font-size: 12.5px;
+    fill: var(--muted);
+    paint-order: stroke;
+    stroke: var(--card);
+    stroke-width: 4;
+    stroke-linejoin: round;
+  }
+  #svg-host .node rect { stroke-width: 1.5; }
+  #svg-host .nl {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.3;
+    padding: 2px 10px;
+  }
+  .n-q rect     { fill: var(--q-bg);     stroke: var(--q-br); }     .n-q .nl     { color: var(--q-fg); }
+  .n-start rect { fill: var(--start-bg); stroke: var(--start-br); } .n-start .nl { color: var(--start-fg); }
+  .n-stop rect  { fill: var(--stop-bg);  stroke: var(--stop-br); }  .n-stop .nl  { color: var(--stop-fg); }
+  .n-buy rect   { fill: var(--buy-bg);   stroke: var(--buy-br); }   .n-buy .nl   { color: var(--buy-fg); }
+  .n-wish rect  { fill: var(--wish-bg);  stroke: var(--wish-br); }  .n-wish .nl  { color: var(--wish-fg); }
+  .n-start .nl, .n-stop .nl, .n-buy .nl, .n-wish .nl { font-weight: 600; }
 </style>
 </head>
 <body>
@@ -146,19 +187,29 @@
   </footer>
 
 <script type="module">
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
 import Panzoom from 'https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.6.0/dist/panzoom.es.js';
 
-// ELK lays out the many edges converging on the reject node much more cleanly
-// than the default renderer; fall back silently if the CDN import fails.
-let layout = 'dagre';
-try {
-  const elkLayouts = (await import('https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.7/dist/mermaid-layout-elk.esm.min.mjs')).default;
-  mermaid.registerLayoutLoaders(elkLayouts);
-  layout = 'elk';
-} catch (e) {
-  console.warn('ELK layout unavailable, using default renderer', e);
-}
+// ══ The flowchart ═══════════════════════════════════════════════════
+// One entry per row, drawn top to bottom.
+//   col:  'main' = the spine, 'side' = the detour column left of it
+//   ja / nee: id of the next question, or 'STOP' → the shared red
+//             "don't buy" trunk in the left gutter.
+// The texts live in `t` below, keyed by the same ids.
+const flow = [
+  { id: 'start',     col: 'main', type: 'start', next: 'steam' },
+  { id: 'steam',     col: 'main', ja: 'launcher', nee: 'STOP' },
+  { id: 'launcher',  col: 'main', ja: 'iap',      nee: 'STOP' },
+  { id: 'iap',       col: 'main', ja: 'online',   nee: 'cosmetic' },
+  { id: 'cosmetic',  col: 'side', ja: 'single',   nee: 'STOP' },
+  { id: 'single',    col: 'side', ja: 'online',   nee: 'STOP' },
+  { id: 'online',    col: 'main', ja: 'STOP',     nee: 'anticheat' },
+  { id: 'anticheat', col: 'main', ja: 'ai',       nee: 'STOP' },
+  { id: 'ai',        col: 'main', ja: 'ea',       nee: 'STOP' },
+  { id: 'ea',        col: 'main', ja: 'STOP',     nee: 'early' },
+  { id: 'early',     col: 'main', ja: 'wishlist', nee: 'buy' },
+  { id: 'wishlist',  col: 'side', type: 'wish' },
+  { id: 'buy',       col: 'main', type: 'buy' },
+];
 
 const t = {
   nl: {
@@ -166,109 +217,154 @@ const t = {
     subtitle: 'Een stroomschema: koop ik dit spel of niet?',
     footer: 'Scroll om te zoomen, sleep om te verschuiven. Wissel van taal rechtsboven.',
     yes: 'Ja', no: 'Nee',
-    start: 'Koop ik het spel?',
     budget: 'Ik gooi vandaag niet met geld.',
-    steam: 'Beschikbaar op Steam?',
-    launcher: "Vrij van eigen 'launcher'?",
-    iap: 'Vrij van in-game aankopen?',
-    cosmetic: 'Alléén cosmetische items?',
-    online: 'Vereist always-online?',
-    single: 'Is het Single Player?',
-    anticheat: 'Vrij van kernel-level-anticheat?',
-    ai: 'Vrij van AI-gegenereerde content?',
-    ea: 'Is de uitgever EA-Games?',
-    early: 'Is het nog in Early Access?',
-    wishlist: 'Zet het op de Verlanglijst.',
-    buy: 'Kopen die handel!',
-    dont: 'Ik koop het spel niet',
+    labels: {
+      start: 'Koop ik het spel?',
+      steam: 'Beschikbaar op Steam?',
+      launcher: "Vrij van eigen 'launcher'?",
+      iap: 'Vrij van in-game aankopen?',
+      cosmetic: 'Alléén cosmetische items?',
+      single: 'Is het Single Player?',
+      online: 'Vereist always-online?',
+      anticheat: 'Vrij van kernel-level-anticheat?',
+      ai: 'Vrij van AI-gegenereerde content?',
+      ea: 'Is de uitgever EA-Games?',
+      early: 'Is het nog in Early Access?',
+      wishlist: 'Zet het op de Verlanglijst.',
+      buy: 'Kopen die handel!',
+      stop: 'Ik koop het spel niet',
+    },
   },
   en: {
     title: 'Game Guide',
     subtitle: 'A flowchart: should I buy this game or not?',
     footer: 'Scroll to zoom, drag to pan. Switch language at the top right.',
     yes: 'Yes', no: 'No',
-    start: 'Should I buy the game?',
     budget: "I'm not throwing money around today.",
-    steam: 'Available on Steam?',
-    launcher: 'Free of its own launcher?',
-    iap: 'Free of in-game purchases?',
-    cosmetic: 'Cosmetic items only?',
-    online: 'Requires always-online?',
-    single: 'Is it single player?',
-    anticheat: 'Free of kernel-level anti-cheat?',
-    ai: 'Free of AI-generated content?',
-    ea: 'Is the publisher EA Games?',
-    early: 'Is it still in Early Access?',
-    wishlist: 'Put it on the wishlist.',
-    buy: 'Buy the damn thing!',
-    dont: "I don't buy the game",
+    labels: {
+      start: 'Should I buy the game?',
+      steam: 'Available on Steam?',
+      launcher: 'Free of its own launcher?',
+      iap: 'Free of in-game purchases?',
+      cosmetic: 'Cosmetic items only?',
+      single: 'Is it single player?',
+      online: 'Requires always-online?',
+      anticheat: 'Free of kernel-level anti-cheat?',
+      ai: 'Free of AI-generated content?',
+      ea: 'Is the publisher EA Games?',
+      early: 'Is it still in Early Access?',
+      wishlist: 'Put it on the wishlist.',
+      buy: 'Buy the damn thing!',
+      stop: "I don't buy the game",
+    },
   },
 };
 
-function diagram(lang) {
-  const s = t[lang];
-  return `flowchart TD
-  K(["${s.start}"]) -->|"${s.budget}"| St
-  St{{"${s.steam}"}} -->|${s.yes}| Ln
-  St -->|${s.no}| N(["${s.dont}"])
-  Ln{{"${s.launcher}"}} -->|${s.yes}| Ig
-  Ln -->|${s.no}| N
-  Ig{{"${s.iap}"}} -->|${s.yes}| Ao
-  Ig -->|${s.no}| Cm
-  Cm{{"${s.cosmetic}"}} -->|${s.yes}| Sp
-  Cm -->|${s.no}| N
-  Sp{{"${s.single}"}} -->|${s.yes}| Ao
-  Sp -->|${s.no}| N
-  Ao{{"${s.online}"}} -->|${s.no}| Kl
-  Ao -->|${s.yes}| N
-  Kl{{"${s.anticheat}"}} -->|${s.yes}| Ai
-  Kl -->|${s.no}| N
-  Ai{{"${s.ai}"}} -->|${s.yes}| Ea
-  Ai -->|${s.no}| N
-  Ea{{"${s.ea}"}} -->|${s.no}| Er
-  Ea -->|${s.yes}| N
-  Er{{"${s.early}"}} -->|${s.yes}| Wl
-  Er -->|${s.no}| B
-  Wl(["${s.wishlist}"])
-  B(["${s.buy}"])
+// ══ Layout ══════════════════════════════════════════════════════════
+const COLS = { gutter: 130, side: 400, main: 700 };  // column centers
+const Q = { w: 260, h: 58 };   // question boxes
+const P = { w: 210, h: 50 };   // start/end pills
+const ROW = 100;               // distance between rows
+const MARGIN = 40;
 
-  classDef startNode fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px
-  classDef reject fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px
-  classDef buyNode fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
-  classDef wish fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
-  class K startNode
-  class N reject
-  class B buyNode
-  class Wl wish`;
+const esc = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+// Polyline with rounded corners.
+function elbow(pts, r = 10) {
+  let d = `M ${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+    const v1 = [Math.sign(x1 - x0), Math.sign(y1 - y0)];
+    const v2 = [Math.sign(x2 - x1), Math.sign(y2 - y1)];
+    d += ` L ${x1 - v1[0] * r} ${y1 - v1[1] * r} Q ${x1} ${y1} ${x1 + v2[0] * r} ${y1 + v2[1] * r}`;
+  }
+  d += ` L ${pts.at(-1)[0]} ${pts.at(-1)[1]}`;
+  return d;
 }
 
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+function buildSvg(s) {
+  const edges = [], nodes = [], texts = [], gutterYs = [];
+  const at = {};
+  flow.forEach((n, i) => { at[n.id] = i; });
+
+  const box = (n) => (n.type ? P : Q);
+  const yTop = (i) => MARGIN + i * ROW;
+
+  const line = (pts) => edges.push(`<path class="edge" d="${elbow(pts)}"/>`);
+  const arrow = (pts) => edges.push(`<path class="edge" d="${elbow(pts)}" marker-end="url(#arrowhead)"/>`);
+  const label = (x, y, text, anchor = 'start') =>
+    texts.push(`<text class="edge-label" x="${x}" y="${y}" text-anchor="${anchor}">${esc(text)}</text>`);
+
+  const drawNode = (n, i) => {
+    const b = box(n), cx = COLS[n.col], top = yTop(i);
+    nodes.push(`<g class="node n-${n.type || 'q'}">
+      <rect x="${cx - b.w / 2}" y="${top}" width="${b.w}" height="${b.h}" rx="${n.type ? b.h / 2 : 12}"/>
+      <foreignObject x="${cx - b.w / 2}" y="${top}" width="${b.w}" height="${b.h}"><div class="nl">${esc(s.labels[n.id])}</div></foreignObject>
+    </g>`);
+  };
+
+  const connect = (src, i, targetId, text) => {
+    const b = box(src), cx = COLS[src.col];
+    const top = yTop(i), bot = top + b.h, midY = top + b.h / 2;
+    if (targetId === 'STOP') {                      // into the left gutter
+      const lx = cx - b.w / 2;
+      gutterYs.push(midY);
+      line([[lx, midY], [COLS.gutter, midY]]);
+      label(lx - 8, midY - 8, text, 'end');
+      return;
+    }
+    const j = at[targetId], tgt = flow[j], tb = box(tgt);
+    const tx = COLS[tgt.col], tTop = yTop(j);
+    if (tgt.col === src.col) {                      // straight down
+      arrow([[cx, bot], [cx, tTop]]);
+      label(cx + 9, bot + 20, text);
+    } else if (src.col === 'main') {                // hop left into the detour
+      arrow([[cx - b.w / 2, midY], [tx, midY], [tx, tTop]]);
+      label(cx - b.w / 2 - 8, midY - 8, text, 'end');
+    } else {                                        // detour merges back into the spine
+      const ex = tx - tb.w / 4;
+      arrow([[cx, bot], [cx, tTop - 22], [ex, tTop - 22], [ex, tTop]]);
+      label(cx + 9, bot + 18, text);
+    }
+  };
+
+  flow.forEach((n, i) => {
+    drawNode(n, i);
+    if (n.next) connect(n, i, n.next, s.budget);
+    if (n.ja) connect(n, i, n.ja, s.yes);
+    if (n.nee) connect(n, i, n.nee, s.no);
+  });
+
+  // The shared reject trunk: every STOP line joins one vertical in the gutter.
+  const lastRow = flow.length - 1;
+  arrow([[COLS.gutter, Math.min(...gutterYs)], [COLS.gutter, yTop(lastRow)]]);
+  gutterYs.forEach((gy) => edges.push(`<circle class="joint" cx="${COLS.gutter}" cy="${gy}" r="3"/>`));
+  drawNode({ id: 'stop', col: 'gutter', type: 'stop' }, lastRow);
+
+  const w = 960, h = yTop(lastRow) + P.h + MARGIN;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+    <defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z"/></marker></defs>
+    ${edges.join('')}${nodes.join('')}${texts.join('')}
+  </svg>`;
+}
+
+// ══ Page wiring ═════════════════════════════════════════════════════
 let lang = new URLSearchParams(location.search).get('lang')
   || localStorage.getItem('gg-lang')
   || (navigator.language?.startsWith('nl') ? 'nl' : 'en');
 if (!t[lang]) lang = 'nl';
 
-let renderCount = 0;
 let panzoom = null;
 
-async function render() {
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: darkQuery.matches ? 'dark' : 'default',
-    layout,
-    securityLevel: 'strict',
-    flowchart: { padding: 12, useMaxWidth: false },
-    elk: { mergeEdges: true, nodePlacementStrategy: 'BRANDES_KOEPF' },
-  });
+function render() {
   const host = document.getElementById('svg-host');
-  const { svg } = await mermaid.render('gg-' + (renderCount++), diagram(lang));
   panzoom?.destroy();
-  host.innerHTML = svg;
+  host.innerHTML = buildSvg(t[lang]);
   const svgEl = host.querySelector('svg');
   // Start fitted to the viewport (but never upscaled past 100%).
-  const box = host.getBoundingClientRect();
+  const boxR = host.getBoundingClientRect();
   const nat = svgEl.getBoundingClientRect();
-  const fit = Math.min(box.width / nat.width, box.height / nat.height, 1);
+  const fit = Math.min(boxR.width / nat.width, boxR.height / nat.height, 1);
   panzoom = Panzoom(svgEl, {
     startScale: fit,
     minScale: Math.min(fit, 0.2),
@@ -278,12 +374,6 @@ async function render() {
     cursor: '',
   });
 }
-
-const diagramEl = document.getElementById('diagram');
-diagramEl.addEventListener('wheel', (e) => panzoom?.zoomWithWheel(e), { passive: false });
-document.getElementById('zoom-in').addEventListener('click', () => panzoom?.zoomIn());
-document.getElementById('zoom-out').addEventListener('click', () => panzoom?.zoomOut());
-document.getElementById('zoom-fit').addEventListener('click', () => panzoom?.reset());
 
 function applyLang() {
   const s = t[lang];
@@ -305,10 +395,14 @@ document.querySelectorAll('.lang-toggle button').forEach((b) => {
     render();
   });
 });
-darkQuery.addEventListener('change', render);
+const diagramEl = document.getElementById('diagram');
+diagramEl.addEventListener('wheel', (e) => panzoom?.zoomWithWheel(e), { passive: false });
+document.getElementById('zoom-in').addEventListener('click', () => panzoom?.zoomIn());
+document.getElementById('zoom-out').addEventListener('click', () => panzoom?.zoomOut());
+document.getElementById('zoom-fit').addEventListener('click', () => panzoom?.reset());
 
 applyLang();
-await render();
+render();
 </script>
 </body>
 </html>
