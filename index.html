@@ -19,8 +19,7 @@
     --buy-bg: #dcfce7;   --buy-br: #16a34a;   --buy-fg: #14532d;
     --wish-bg: #fef9c3;  --wish-br: #ca8a04;  --wish-fg: #713f12;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
+  :root[data-theme="dark"] {
       --bg: #0f172a;
       --fg: #e2e8f0;
       --muted: #94a3b8;
@@ -33,7 +32,6 @@
       --stop-bg: #451a1a;  --stop-br: #f87171;  --stop-fg: #fecaca;
       --buy-bg: #132e1f;   --buy-br: #4ade80;   --buy-fg: #bbf7d0;
       --wish-bg: #3a3110;  --wish-br: #facc15;  --wish-fg: #fef08a;
-    }
   }
   * { box-sizing: border-box; }
   body {
@@ -77,6 +75,18 @@
     background: var(--accent);
     color: #fff;
   }
+  .header-controls { display: flex; align-items: center; gap: 0.6rem; }
+  #theme-toggle {
+    width: 2.55rem;
+    height: 2.55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #theme-toggle:hover { border-color: var(--accent); }
   main {
     flex: 1;
     min-height: 0;
@@ -160,6 +170,11 @@
   .n-wish rect  { fill: var(--wish-bg);  stroke: var(--wish-br); }  .n-wish .nl  { color: var(--wish-fg); }
   .n-start .nl, .n-stop .nl, .n-buy .nl, .n-wish .nl { font-weight: 600; }
 </style>
+<script>
+  // Set before first paint to avoid a light flash on dark systems.
+  document.documentElement.dataset.theme = localStorage.getItem('gg-theme')
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+</script>
 </head>
 <body>
   <header>
@@ -167,10 +182,13 @@
       <h1 id="title"></h1>
       <p id="subtitle"></p>
     </div>
-    <nav class="lang-toggle" aria-label="Language">
-      <button type="button" data-lang="nl">NL</button>
-      <button type="button" data-lang="en">EN</button>
-    </nav>
+    <div class="header-controls">
+      <nav class="lang-toggle" aria-label="Language">
+        <button type="button" data-lang="nl">NL</button>
+        <button type="button" data-lang="en">EN</button>
+      </nav>
+      <button type="button" id="theme-toggle" aria-label="Theme"></button>
+    </div>
   </header>
   <main>
     <div id="diagram">
@@ -395,6 +413,19 @@ document.querySelectorAll('.lang-toggle button').forEach((b) => {
     render();
   });
 });
+const themeBtn = document.getElementById('theme-toggle');
+function applyThemeIcon() {
+  // Shows what clicking switches to.
+  themeBtn.textContent = document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙';
+}
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('gg-theme', next);
+  applyThemeIcon();
+});
+applyThemeIcon();
+
 const diagramEl = document.getElementById('diagram');
 diagramEl.addEventListener('wheel', (e) => panzoom?.zoomWithWheel(e), { passive: false });
 document.getElementById('zoom-in').addEventListener('click', () => panzoom?.zoomIn());
