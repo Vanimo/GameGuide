@@ -75,7 +75,20 @@
     background: var(--accent);
     color: #fff;
   }
-  .header-controls { display: flex; align-items: center; gap: 0.6rem; }
+  .header-controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  #version-select {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.9rem;
+    max-width: 17rem;
+    cursor: pointer;
+  }
+  #version-select:hover { border-color: var(--accent); }
   #theme-toggle {
     width: 2.55rem;
     height: 2.55rem;
@@ -183,6 +196,7 @@
       <p id="subtitle"></p>
     </div>
     <div class="header-controls">
+      <select id="version-select" aria-label="Version"></select>
       <nav class="lang-toggle" aria-label="Language">
         <button type="button" data-lang="nl">NL</button>
         <button type="button" data-lang="en">EN</button>
@@ -207,27 +221,74 @@
 <script type="module">
 import Panzoom from 'https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.6.0/dist/panzoom.es.js';
 
-// ══ The flowchart ═══════════════════════════════════════════════════
-// One entry per row, drawn top to bottom.
+// ══ The flowchart, per version ══════════════════════════════════════
+// Newest version last; the page opens on it. To publish a change:
+// copy the last entry, bump v, set the date, edit its flow, and add any
+// new texts to `t` below. Never delete label ids from `t` — older
+// versions still use them.
+// Flow format: one entry per row, drawn top to bottom.
 //   col:  'main' = the spine, 'side' = the detour column left of it
 //   ja / nee: id of the next question, or 'STOP' → the shared red
 //             "don't buy" trunk in the left gutter.
-// The texts live in `t` below, keyed by the same ids.
-const flow = [
-  { id: 'start',            col: 'main', type: 'start', next: 'steam' },
-  { id: 'steam',            col: 'main', ja: 'launcher', nee: 'STOP' },
-  { id: 'launcher',         col: 'main', ja: 'iap',      nee: 'launchexceptions' },
-  { id: 'launchexceptions', col: 'side', ja: 'iap',      nee: 'STOP' },
-  { id: 'iap',              col: 'main', ja: 'online',   nee: 'cosmetic' },
-  { id: 'cosmetic',         col: 'side', ja: 'single',   nee: 'STOP' },
-  { id: 'single',           col: 'side', ja: 'STOP',     nee: 'online' },
-  { id: 'online',           col: 'main', ja: 'STOP',     nee: 'anticheat' },
-  { id: 'anticheat',        col: 'main', ja: 'ai',       nee: 'STOP' },
-  { id: 'ai',               col: 'main', ja: 'ea',       nee: 'STOP' },
-  { id: 'ea',               col: 'main', ja: 'STOP',     nee: 'early' },
-  { id: 'early',            col: 'main', ja: 'wishlist', nee: 'buy' },
-  { id: 'wishlist',         col: 'side', type: 'wish' },
-  { id: 'buy',              col: 'main', type: 'buy' },
+const versions = [
+  {
+    v: 1, date: '2026-08-07',
+    note: { nl: 'Eerste versie', en: 'First version' },
+    flow: [
+      { id: 'start',     col: 'main', type: 'start', next: 'steam' },
+      { id: 'steam',     col: 'main', ja: 'launcher',  nee: 'STOP' },
+      { id: 'launcher',  col: 'main', ja: 'iap',       nee: 'STOP' },
+      { id: 'iap',       col: 'main', ja: 'anticheat', nee: 'cosmetic' },
+      { id: 'cosmetic',  col: 'side', ja: 'online',    nee: 'STOP' },
+      { id: 'online',    col: 'side', ja: 'STOP',      nee: 'single' },
+      { id: 'single',    col: 'side', ja: 'anticheat', nee: 'STOP' },
+      { id: 'anticheat', col: 'main', ja: 'ai',        nee: 'STOP' },
+      { id: 'ai',        col: 'main', ja: 'ea',        nee: 'STOP' },
+      { id: 'ea',        col: 'main', ja: 'STOP',      nee: 'early' },
+      { id: 'early',     col: 'main', ja: 'wishlist',  nee: 'buy' },
+      { id: 'wishlist',  col: 'side', type: 'wish' },
+      { id: 'buy',       col: 'main', type: 'buy' },
+    ],
+  },
+  {
+    v: 2, date: '2026-08-07',
+    note: { nl: 'Vragen herordend', en: 'Questions reordered' },
+    flow: [
+      { id: 'start',     col: 'main', type: 'start', next: 'steam' },
+      { id: 'steam',     col: 'main', ja: 'launcher', nee: 'STOP' },
+      { id: 'launcher',  col: 'main', ja: 'iap',      nee: 'STOP' },
+      { id: 'iap',       col: 'main', ja: 'online',   nee: 'cosmetic' },
+      { id: 'cosmetic',  col: 'side', ja: 'single',   nee: 'STOP' },
+      { id: 'single',    col: 'side', ja: 'online',   nee: 'STOP' },
+      { id: 'online',    col: 'main', ja: 'STOP',     nee: 'anticheat' },
+      { id: 'anticheat', col: 'main', ja: 'ai',       nee: 'STOP' },
+      { id: 'ai',        col: 'main', ja: 'ea',       nee: 'STOP' },
+      { id: 'ea',        col: 'main', ja: 'STOP',     nee: 'early' },
+      { id: 'early',     col: 'main', ja: 'wishlist', nee: 'buy' },
+      { id: 'wishlist',  col: 'side', type: 'wish' },
+      { id: 'buy',       col: 'main', type: 'buy' },
+    ],
+  },
+  {
+    v: 3, date: '2026-09-05',
+    note: { nl: 'Launcher-uitzonderingen', en: 'Launcher exceptions' },
+    flow: [
+      { id: 'start',            col: 'main', type: 'start', next: 'steam' },
+      { id: 'steam',            col: 'main', ja: 'launcher', nee: 'STOP' },
+      { id: 'launcher',         col: 'main', ja: 'iap',      nee: 'launchexceptions' },
+      { id: 'launchexceptions', col: 'side', ja: 'iap',      nee: 'STOP' },
+      { id: 'iap',              col: 'main', ja: 'online',   nee: 'cosmetic' },
+      { id: 'cosmetic',         col: 'side', ja: 'single',   nee: 'STOP' },
+      { id: 'single',           col: 'side', ja: 'STOP',     nee: 'online' },
+      { id: 'online',           col: 'main', ja: 'STOP',     nee: 'anticheat' },
+      { id: 'anticheat',        col: 'main', ja: 'ai',       nee: 'STOP' },
+      { id: 'ai',               col: 'main', ja: 'ea',       nee: 'STOP' },
+      { id: 'ea',               col: 'main', ja: 'STOP',     nee: 'early' },
+      { id: 'early',            col: 'main', ja: 'wishlist', nee: 'buy' },
+      { id: 'wishlist',         col: 'side', type: 'wish' },
+      { id: 'buy',              col: 'main', type: 'buy' },
+    ],
+  },
 ];
 
 const t = {
@@ -303,7 +364,7 @@ function elbow(pts, r = 10) {
   return d;
 }
 
-function buildSvg(s) {
+function buildSvg(s, flow) {
   const edges = [], nodes = [], texts = [], gutterYs = [];
   const at = {};
   flow.forEach((n, i) => { at[n.id] = i; });
@@ -375,12 +436,18 @@ let lang = new URLSearchParams(location.search).get('lang')
   || (navigator.language?.startsWith('nl') ? 'nl' : 'en');
 if (!t[lang]) lang = 'nl';
 
+// Open on the newest version, or the one named by ?v=.
+let versionIdx = versions.length - 1;
+const vParam = Number(new URLSearchParams(location.search).get('v'));
+const vFound = versions.findIndex((ver) => ver.v === vParam);
+if (vFound >= 0) versionIdx = vFound;
+
 let panzoom = null;
 
 function render() {
   const host = document.getElementById('svg-host');
   panzoom?.destroy();
-  host.innerHTML = buildSvg(t[lang]);
+  host.innerHTML = buildSvg(t[lang], versions[versionIdx].flow);
   const svgEl = host.querySelector('svg');
   // Start fitted to the viewport (but never upscaled past 100%).
   const boxR = host.getBoundingClientRect();
@@ -396,6 +463,8 @@ function render() {
   });
 }
 
+const versionSelect = document.getElementById('version-select');
+
 function applyLang() {
   const s = t[lang];
   document.documentElement.lang = lang;
@@ -406,7 +475,16 @@ function applyLang() {
   document.querySelectorAll('.lang-toggle button').forEach((b) => {
     b.classList.toggle('active', b.dataset.lang === lang);
   });
+  versionSelect.innerHTML = versions
+    .map((ver, i) => `<option value="${i}">v${ver.v} · ${ver.date} — ${esc(ver.note[lang])}</option>`)
+    .join('');
+  versionSelect.selectedIndex = versionIdx;
 }
+
+versionSelect.addEventListener('change', () => {
+  versionIdx = versionSelect.selectedIndex;
+  render();
+});
 
 document.querySelectorAll('.lang-toggle button').forEach((b) => {
   b.addEventListener('click', () => {
